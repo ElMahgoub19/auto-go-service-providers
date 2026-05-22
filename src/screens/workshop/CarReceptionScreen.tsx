@@ -9,24 +9,27 @@ import {
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 
 interface Props {
-  navigation: any;
-  route: { params: { bookingId: string } };
+  navigation?: any;
+  route?: { params: { bookingId: string } };
 }
 
 const FUEL_LEVELS = [
-  { key: 'empty', label: 'فاضي', icon: '🔴' },
-  { key: 'quarter', label: 'ربع', icon: '🟠' },
-  { key: 'half', label: 'نص', icon: '🟡' },
-  { key: 'three_quarter', label: '٣/٤', icon: '🟢' },
-  { key: 'full', label: 'فل', icon: '🟢' },
+  { key: 'empty', label: 'فاضي', color: '#EF4444' },
+  { key: 'quarter', label: 'ربع', color: '#F97316' },
+  { key: 'half', label: 'نص', color: '#EAB308' },
+  { key: 'three_quarter', label: '٣/٤', color: '#10B981' },
+  { key: 'full', label: 'فل', color: '#10B981' },
 ];
 
 const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const [photos, setPhotos] = useState({
     front: false,
     back: false,
@@ -45,18 +48,24 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleSubmit = () => {
-    navigation.navigate('ProgressUpdate', { bookingId: route.params.bookingId });
+    navigation.navigate('ProgressUpdate', { bookingId: route?.params?.bookingId || '' });
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
       <LinearGradient colors={['#0A1520', '#0D2B2D', '#0A1520']} style={styles.gradient}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + spacing.lg },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backArrow}>→</Text>
+              <Ionicons name="arrow-forward" size={18} color={colors.text.primary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>تيكيت استلام السيارة</Text>
           </View>
@@ -79,7 +88,10 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
 
           {/* Photo Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📷 تصوير السيارة ({photoCount}/4)</Text>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="camera-outline" size={20} color={colors.text.primary} />
+              <Text style={styles.sectionTitle}>تصوير السيارة ({photoCount}/4)</Text>
+            </View>
             <Text style={styles.sectionSubtitle}>صور السيارة من الأربع جهات للتوثيق</Text>
             
             <View style={styles.photoGrid}>
@@ -97,9 +109,11 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
                   ]}
                   onPress={() => handleTakePhoto(side.key)}
                 >
-                  <Text style={styles.photoIcon}>
-                    {photos[side.key as keyof typeof photos] ? '✅' : '📸'}
-                  </Text>
+                  {photos[side.key as keyof typeof photos] ? (
+                    <MaterialCommunityIcons name="check-circle" size={28} color={colors.status.success} />
+                  ) : (
+                    <MaterialCommunityIcons name="camera-plus-outline" size={28} color={colors.text.tertiary} />
+                  )}
                   <Text style={[
                     styles.photoLabel,
                     photos[side.key as keyof typeof photos] && styles.photoLabelDone,
@@ -113,7 +127,10 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
 
           {/* Fuel Level */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⛽ مستوى الوقود</Text>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="gas-station-outline" size={20} color={colors.text.primary} />
+              <Text style={styles.sectionTitle}>مستوى الوقود</Text>
+            </View>
             <View style={styles.fuelContainer}>
               {FUEL_LEVELS.map((level) => (
                 <TouchableOpacity
@@ -124,7 +141,7 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
                   ]}
                   onPress={() => setFuelLevel(level.key)}
                 >
-                  <Text style={styles.fuelIcon}>{level.icon}</Text>
+                  <View style={[styles.fuelDot, { backgroundColor: level.color }]} />
                   <Text style={[
                     styles.fuelLabel,
                     fuelLevel === level.key && styles.fuelLabelSelected,
@@ -138,7 +155,10 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
 
           {/* Scratches */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔍 خدوش أو أضرار ظاهرة</Text>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="magnify" size={20} color={colors.text.primary} />
+              <Text style={styles.sectionTitle}>خدوش أو أضرار ظاهرة</Text>
+            </View>
             <TextInput
               style={styles.textArea}
               placeholder="مثال: خدش بسيط في الصدام الأمامي من الجهة اليمنى..."
@@ -154,7 +174,10 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
 
           {/* Notes */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📝 ملاحظات إضافية</Text>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="text-box-outline" size={20} color={colors.text.primary} />
+              <Text style={styles.sectionTitle}>ملاحظات إضافية</Text>
+            </View>
             <TextInput
               style={styles.textArea}
               placeholder="أي ملاحظات تانية من العميل..."
@@ -180,7 +203,7 @@ const CarReceptionScreen: React.FC<Props> = ({ navigation, route }) => {
               style={styles.submitGradient}
             >
               <Text style={[styles.submitText, !isComplete && styles.submitTextDisabled]}>
-                تأكيد استلام السيارة ✓
+                تأكيد استلام السيارة
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -194,12 +217,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.primary },
   gradient: { flex: 1 },
   scrollContent: {
-    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 16 : 56,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing['4xl'],
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: spacing.md,
     marginBottom: spacing['2xl'],
@@ -214,8 +236,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.background.glassBorder,
   },
-  backArrow: { color: colors.text.primary, fontSize: 18 },
-  headerTitle: { ...typography.h3, color: colors.text.primary },
+  headerTitle: { ...typography.h3, color: colors.text.primary, textAlign: 'right' },
   infoCard: {
     backgroundColor: colors.background.glass,
     borderRadius: borderRadius.xl,
@@ -225,22 +246,29 @@ const styles = StyleSheet.create({
     marginBottom: spacing['2xl'],
   },
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
   },
-  infoLabel: { ...typography.body, color: colors.text.secondary },
-  infoValue: { ...typography.label, color: colors.text.primary },
+  infoLabel: { ...typography.body, color: colors.text.secondary, textAlign: 'right' },
+  infoValue: { ...typography.label, color: colors.text.primary, textAlign: 'left' },
   section: { marginBottom: spacing['2xl'] },
+  sectionTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   sectionTitle: {
     ...typography.h4,
     color: colors.text.primary,
-    marginBottom: spacing.sm,
+    textAlign: 'right',
   },
   sectionSubtitle: {
     ...typography.bodySmall,
     color: colors.text.tertiary,
     marginBottom: spacing.lg,
+    textAlign: 'right',
   },
   photoGrid: {
     flexDirection: 'row',
@@ -264,7 +292,6 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
     backgroundColor: 'rgba(16,185,129,0.05)',
   },
-  photoIcon: { fontSize: 28 },
   photoLabel: { ...typography.labelSmall, color: colors.text.tertiary },
   photoLabelDone: { color: colors.status.success },
   fuelContainer: {
@@ -286,7 +313,11 @@ const styles = StyleSheet.create({
     borderColor: colors.accent.primary,
     backgroundColor: 'rgba(212,160,86,0.08)',
   },
-  fuelIcon: { fontSize: 16 },
+  fuelDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
   fuelLabel: { ...typography.caption, color: colors.text.tertiary },
   fuelLabelSelected: { color: colors.accent.primary },
   textArea: {

@@ -8,16 +8,19 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 
 interface Props {
-  navigation: any;
-  route: { params: { jobId: string } };
+  navigation?: any;
+  route?: { params: { jobId: string } };
 }
 
 const JobCompletionScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -32,15 +35,18 @@ const JobCompletionScreen: React.FC<Props> = ({ navigation }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
       <LinearGradient colors={['#060E17', '#0D2B2D', '#0A1520']} style={styles.gradient}>
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           {/* Success Icon */}
           <Animated.View style={[styles.successIcon, { transform: [{ scale: scaleAnim }] }]}>
             <LinearGradient colors={['#10B981', '#059669']} style={styles.successGradient}>
-              <Text style={styles.checkIcon}>✓</Text>
+              <MaterialCommunityIcons name="check-bold" size={44} color="#FFFFFF" />
             </LinearGradient>
           </Animated.View>
 
-          <Text style={styles.title}>تمام يا معلم! 🎉</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>تمام يا معلم!</Text>
+            <MaterialCommunityIcons name="party-popper" size={28} color={colors.accent.primary} style={styles.titleIcon} />
+          </View>
           <Text style={styles.subtitle}>الرحلة خلصت بنجاح</Text>
 
           {/* Invoice Summary */}
@@ -110,17 +116,24 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 15,
   },
-  checkIcon: { fontSize: 50, color: '#FFFFFF' },
+  titleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  titleIcon: {
+    marginRight: spacing.sm,
+  },
   title: {
     ...typography.h2,
     color: colors.text.primary,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+    textAlign: 'right',
   },
   subtitle: {
     ...typography.body,
     color: colors.text.secondary,
     marginBottom: spacing['3xl'],
+    textAlign: 'right',
   },
   invoiceCard: {
     width: '100%',
@@ -138,7 +151,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   invoiceRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.sm,
@@ -146,18 +159,22 @@ const styles = StyleSheet.create({
   invoiceLabel: {
     ...typography.body,
     color: colors.text.secondary,
+    textAlign: 'right',
   },
   invoiceValue: {
     ...typography.label,
     color: colors.text.primary,
+    textAlign: 'left',
   },
   invoiceTotalLabel: {
     ...typography.label,
     color: colors.text.primary,
+    textAlign: 'right',
   },
   invoiceTotalValue: {
     ...typography.h4,
     color: colors.text.primary,
+    textAlign: 'left',
   },
   divider: {
     height: 1,
@@ -167,10 +184,12 @@ const styles = StyleSheet.create({
   netLabel: {
     ...typography.h4,
     color: colors.accent.emerald,
+    textAlign: 'right',
   },
   netValue: {
     ...typography.h3,
     color: colors.accent.emerald,
+    textAlign: 'left',
   },
   actions: { width: '100%' },
   primaryButton: {

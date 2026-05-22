@@ -7,24 +7,28 @@ import {
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { UserRole } from '../../types';
 
 interface Props {
-  navigation: any;
+  navigation?: any;
 }
 
 const RoleSelectionScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+
   const handleRoleSelect = (role: UserRole) => {
-    navigation.navigate('Login', { role });
+    navigation?.navigate('Login', { role });
   };
 
   return (
     <LinearGradient
       colors={['#060E17', '#0D2B2D', '#0A1520']}
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top + 20 }]}
     >
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
@@ -35,7 +39,7 @@ const RoleSelectionScreen: React.FC<Props> = ({ navigation }) => {
             colors={['#D4A056', '#C4842D']}
             style={styles.logoGradient}
           >
-            <Text style={styles.logoIcon}>🔧</Text>
+            <MaterialCommunityIcons name="car-wrench" size={40} color="#0A1520" />
           </LinearGradient>
         </View>
         <Text style={styles.appName}>AutoGo Partners</Text>
@@ -63,14 +67,16 @@ const RoleSelectionScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.roleCardGradient}
           >
             <View style={[styles.roleIconContainer, { backgroundColor: colors.role.winchGlow }]}>
-              <Text style={styles.roleIcon}>🚜</Text>
+              <MaterialCommunityIcons name="truck-flatbed" size={30} color={colors.role.winch} />
             </View>
-            <Text style={styles.roleTitle}>سائق ونش</Text>
-            <Text style={styles.roleDescription}>
-              خدمات الإنقاذ والسحب على الطريق
-            </Text>
+            <View style={styles.roleTextContainer}>
+              <Text style={styles.roleTitle}>سائق ونش</Text>
+              <Text style={styles.roleDescription}>
+                خدمات الإنقاذ والسحب على الطريق
+              </Text>
+            </View>
             <View style={[styles.roleArrow, { backgroundColor: colors.role.winch }]}>
-              <Text style={styles.roleArrowText}>←</Text>
+              <Ionicons name="arrow-back" size={18} color="#0A1520" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -86,14 +92,16 @@ const RoleSelectionScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.roleCardGradient}
           >
             <View style={[styles.roleIconContainer, { backgroundColor: colors.role.workshopGlow }]}>
-              <Text style={styles.roleIcon}>🏭</Text>
+              <MaterialCommunityIcons name="car-cog" size={30} color={colors.role.workshop} />
             </View>
-            <Text style={styles.roleTitle}>مركز صيانة</Text>
-            <Text style={styles.roleDescription}>
-              استقبال حجوزات الصيانة والإصلاح
-            </Text>
+            <View style={styles.roleTextContainer}>
+              <Text style={styles.roleTitle}>مركز صيانة</Text>
+              <Text style={styles.roleDescription}>
+                استقبال حجوزات الصيانة والإصلاح
+              </Text>
+            </View>
             <View style={[styles.roleArrow, { backgroundColor: colors.role.workshop }]}>
-              <Text style={styles.roleArrowText}>←</Text>
+              <Ionicons name="arrow-back" size={18} color="#0A1520" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -113,7 +121,6 @@ const RoleSelectionScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 60,
   },
   logoSection: {
     alignItems: 'center',
@@ -189,18 +196,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  roleIcon: {
-    fontSize: 30,
+  roleTextContainer: {
+    flex: 1,
+    alignItems: 'flex-start',
   },
   roleTitle: {
     ...typography.h4,
     color: colors.text.primary,
-    flex: 0,
+    marginBottom: 4,
   },
   roleDescription: {
     ...typography.bodySmall,
     color: colors.text.secondary,
-    flex: 1,
+    textAlign: 'left',
   },
   roleArrow: {
     width: 36,
@@ -208,11 +216,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  roleArrowText: {
-    color: '#0A1520',
-    fontSize: 18,
-    fontWeight: '700',
   },
   footer: {
     position: 'absolute',

@@ -10,13 +10,15 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 
 interface Props {
-  navigation: any;
-  route: { params: { bookingId: string } };
+  navigation?: any;
+  route?: { params: { bookingId: string } };
 }
 
 interface ServiceItemLocal {
@@ -32,7 +34,16 @@ interface PartItemLocal {
   unitPrice: string;
 }
 
+const STATUSES = [
+  { key: 'inspecting', label: 'جاري الفحص', icon: 'magnify' as const },
+  { key: 'waiting_parts', label: 'في انتظار قطع الغيار', icon: 'package-variant' as const },
+  { key: 'in_repair', label: 'جاري الإصلاح', icon: 'wrench' as const },
+  { key: 'quality_check', label: 'فحص الجودة', icon: 'clipboard-check-outline' as const },
+  { key: 'ready', label: 'جاهزة للاستلام', icon: 'car' as const },
+];
+
 const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const [currentStatus, setCurrentStatus] = useState(0);
   const [services, setServices] = useState<ServiceItemLocal[]>([
     { id: '1', name: 'تغيير زيت موتور', price: '250' },
@@ -49,14 +60,6 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
   const [newPartPrice, setNewPartPrice] = useState('');
   const [quotationSent, setQuotationSent] = useState(false);
   const [quotationApproved, setQuotationApproved] = useState(false);
-
-  const STATUSES = [
-    { key: 'inspecting', label: 'جاري الفحص', icon: '🔍' },
-    { key: 'waiting_parts', label: 'في انتظار قطع الغيار', icon: '📦' },
-    { key: 'in_repair', label: 'جاري الإصلاح', icon: '🔧' },
-    { key: 'quality_check', label: 'فحص الجودة', icon: '✅' },
-    { key: 'ready', label: 'جاهزة للاستلام', icon: '🚗' },
-  ];
 
   const totalServicesPrice = services.reduce((sum, s) => sum + (parseInt(s.price) || 0), 0);
   const totalPartsPrice = parts.reduce((sum, p) => sum + (parseInt(p.unitPrice) || 0) * (parseInt(p.quantity) || 0), 0);
@@ -98,7 +101,7 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSendQuotation = () => {
     setQuotationSent(true);
-    Alert.alert('✅ تم الإرسال', 'تم إرسال عرض السعر للعميل وفي انتظار الموافقة');
+    Alert.alert('تم الإرسال', 'تم إرسال عرض السعر للعميل وفي انتظار الموافقة');
     // Mock: auto-approve after a delay
     setTimeout(() => setQuotationApproved(true), 2000);
   };
@@ -107,7 +110,7 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
     if (currentStatus < STATUSES.length - 1) {
       setCurrentStatus(currentStatus + 1);
     } else {
-      Alert.alert('🎉 تمام', 'السيارة جاهزة! تم إبلاغ العميل.');
+      Alert.alert('تم بنجاح', 'السيارة جاهزة! تم إبلاغ العميل.');
       navigation.popToTop();
     }
   };
@@ -116,18 +119,27 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
       <LinearGradient colors={['#0A1520', '#0D2B2D', '#0A1520']} style={styles.gradient}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + spacing.lg },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backArrow}>→</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.text.primary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>إدارة الصيانة</Text>
           </View>
 
           {/* Status Progress */}
           <View style={styles.statusSection}>
-            <Text style={styles.sectionTitle}>📊 حالة العمل</Text>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="chart-bar" size={20} color={colors.accent.primary} />
+              <Text style={styles.sectionTitle}>حالة العمل</Text>
+            </View>
             <View style={styles.statusBar}>
               {STATUSES.map((status, index) => (
                 <View key={status.key} style={styles.statusItem}>
@@ -136,9 +148,23 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
                     index <= currentStatus && styles.statusDotActive,
                     index === currentStatus && styles.statusDotCurrent,
                   ]}>
-                    <Text style={styles.statusIcon}>
-                      {index < currentStatus ? '✓' : status.icon}
-                    </Text>
+                    {index < currentStatus ? (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={16}
+                        color={colors.status.success}
+                      />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name={status.icon}
+                        size={16}
+                        color={
+                          index === currentStatus
+                            ? colors.accent.primary
+                            : colors.text.muted
+                        }
+                      />
+                    )}
                   </View>
                   <Text style={[
                     styles.statusLabel,
@@ -159,7 +185,10 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
 
           {/* Services Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔧 الخدمات (المصنعية)</Text>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="wrench" size={20} color={colors.accent.primary} />
+              <Text style={styles.sectionTitle}>الخدمات (المصنعية)</Text>
+            </View>
             {services.map((service) => (
               <View key={service.id} style={styles.itemRow}>
                 <TouchableOpacity onPress={() => removeService(service.id)} style={styles.removeBtn}>
@@ -196,7 +225,10 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
 
           {/* Parts Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📦 قطع الغيار</Text>
+            <View style={styles.sectionTitleRow}>
+              <MaterialCommunityIcons name="package-variant" size={20} color={colors.accent.primary} />
+              <Text style={styles.sectionTitle}>قطع الغيار</Text>
+            </View>
             {parts.map((part) => (
               <View key={part.id} style={styles.itemRow}>
                 <TouchableOpacity onPress={() => removePart(part.id)} style={styles.removeBtn}>
@@ -273,8 +305,8 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
                 <Text style={[styles.quotationText, quotationSent && { color: colors.text.tertiary }]}>
                   {quotationSent 
                     ? quotationApproved 
-                      ? '✅ العميل وافق!' 
-                      : '⏳ في انتظار موافقة العميل...' 
+                      ? 'العميل وافق!' 
+                      : 'في انتظار موافقة العميل...' 
                     : 'إرسال عرض السعر للعميل ←'}
                 </Text>
               </LinearGradient>
@@ -294,7 +326,7 @@ const ProgressUpdateScreen: React.FC<Props> = ({ navigation, route }) => {
               >
                 <Text style={styles.statusUpdateText}>
                   {currentStatus === STATUSES.length - 1
-                    ? '🎉 إبلاغ العميل - السيارة جاهزة'
+                    ? 'إبلاغ العميل - السيارة جاهزة'
                     : `تحديث الحالة: ${STATUSES[currentStatus + 1]?.label} ←`}
                 </Text>
               </LinearGradient>
@@ -310,12 +342,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.primary },
   gradient: { flex: 1 },
   scrollContent: {
-    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 16 : 56,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing['4xl'],
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: spacing.md,
     marginBottom: spacing['2xl'],
@@ -330,10 +361,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.background.glassBorder,
   },
-  backArrow: { color: colors.text.primary, fontSize: 18 },
-  headerTitle: { ...typography.h3, color: colors.text.primary },
+  headerTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    textAlign: 'right',
+  },
   // Status
   statusSection: { marginBottom: spacing['2xl'] },
+  sectionTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
   statusBar: {
     backgroundColor: colors.background.glass,
     borderRadius: borderRadius.xl,
@@ -342,7 +382,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   statusItem: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
@@ -353,7 +393,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.md,
+    marginLeft: spacing.md,
   },
   statusDotActive: { backgroundColor: 'rgba(16,185,129,0.15)' },
   statusDotCurrent: {
@@ -361,16 +401,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.accent.primary,
   },
-  statusIcon: { fontSize: 14 },
   statusLabel: {
     ...typography.bodySmall,
     color: colors.text.muted,
     flex: 1,
+    textAlign: 'right',
   },
   statusLabelActive: { color: colors.text.primary, fontWeight: '600' },
   statusLine: {
     position: 'absolute',
-    left: 15,
+    right: 15,
     bottom: -10,
     width: 2,
     height: 8,
@@ -382,10 +422,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.h4,
     color: colors.text.primary,
-    marginBottom: spacing.lg,
+    textAlign: 'right',
   },
   itemRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: colors.background.glass,
     borderRadius: borderRadius.md,
@@ -402,7 +442,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   removeText: { color: colors.status.error, fontSize: 12, fontWeight: '700' },
-  itemName: { ...typography.body, color: colors.text.primary, flex: 1 },
+  itemName: {
+    ...typography.body,
+    color: colors.text.primary,
+    flex: 1,
+    textAlign: 'right',
+  },
   itemQty: { ...typography.labelSmall, color: colors.text.tertiary },
   itemPrice: { ...typography.label, color: colors.accent.primary },
   addRow: {
@@ -440,18 +485,29 @@ const styles = StyleSheet.create({
     marginBottom: spacing['2xl'],
   },
   totalRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     paddingVertical: spacing.xs,
   },
-  totalLabel: { ...typography.body, color: colors.text.secondary },
-  totalValue: { ...typography.label, color: colors.text.primary },
+  totalLabel: {
+    ...typography.body,
+    color: colors.text.secondary,
+    textAlign: 'right',
+  },
+  totalValue: {
+    ...typography.label,
+    color: colors.text.primary,
+  },
   totalDivider: {
     height: 1,
     backgroundColor: colors.divider,
     marginVertical: spacing.md,
   },
-  totalGrandLabel: { ...typography.h4, color: colors.accent.primary },
+  totalGrandLabel: {
+    ...typography.h4,
+    color: colors.accent.primary,
+    textAlign: 'right',
+  },
   totalGrandValue: { ...typography.h3, color: colors.accent.primary },
   // Quotation
   quotationButton: {

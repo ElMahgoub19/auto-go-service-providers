@@ -9,8 +9,12 @@ import {
   Animated,
   Dimensions,
   Switch,
+  Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -20,7 +24,7 @@ import { toggleOnline } from '../../store/slices/authSlice';
 const { width } = Dimensions.get('window');
 
 interface Props {
-  navigation: any;
+  navigation?: any;
 }
 
 // Mock data for active requests
@@ -83,11 +87,33 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   const role = provider?.role || 'winch_driver';
   const isOnline = provider?.isOnline || false;
   const isWinch = role === 'winch_driver';
+  const insets = useSafeAreaInsets();
+
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadAvatar = async () => {
+      try {
+        const storedUri = await AsyncStorage.getItem(`@avatar_${provider?.phone || 'default'}`);
+        if (storedUri) {
+          setAvatarUri(storedUri);
+        }
+      } catch (error) {
+        console.error('Error loading avatar:', error);
+      }
+    };
+    
+    const unsubscribe = navigation?.addListener('focus', () => {
+      loadAvatar();
+    });
+
+    loadAvatar();
+    return unsubscribe;
+  }, [provider?.phone, navigation]);
 
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
-    // Start layout animations without mixing native drivers in parallel to avoid hangs
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 600,
@@ -114,7 +140,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
       <LinearGradient colors={['#0A1520', '#0D2B2D', '#0A1520']} style={styles.gradient}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
         >
           {/* Header */}
           <Animated.View style={[styles.header, { transform: [{ translateY: slideAnim }] }]}>
@@ -123,12 +149,16 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.greeting}>أهلاً يا</Text>
                 <Text style={styles.name}>{provider?.name || 'شريك أوتو جو'}</Text>
               </View>
-              <TouchableOpacity style={styles.avatarContainer}>
-                <LinearGradient colors={['#D4A056', '#C4842D']} style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {(provider?.name || 'أ').charAt(0)}
-                  </Text>
-                </LinearGradient>
+              <TouchableOpacity style={styles.avatarContainer} onPress={() => navigation?.navigate('Profile')} activeOpacity={0.8}>
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={[styles.avatar, { resizeMode: 'cover' }]} />
+                ) : (
+                  <LinearGradient colors={['#D4A056', '#C4842D']} style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {(provider?.name || 'أ').charAt(0)}
+                    </Text>
+                  </LinearGradient>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -154,46 +184,65 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Stats Cards */}
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
+            <TouchableOpacity 
+              style={styles.statCard} 
+              activeOpacity={0.8}
+              onPress={() => navigation?.navigate('Profile', { openModal: 'Stats' })}
+            >
               <LinearGradient
                 colors={['rgba(212,160,86,0.12)', 'rgba(212,160,86,0.04)']}
                 style={styles.statGradient}
               >
-                <Text style={styles.statIcon}>💰</Text>
+                <MaterialCommunityIcons name="cash-multiple" size={24} color={colors.accent.primary} style={{ marginBottom: 8 }} />
                 <Text style={styles.statValue}>١,٢٠٠</Text>
                 <Text style={styles.statUnit}>ج.م</Text>
                 <Text style={styles.statLabel}>أرباح اليوم</Text>
               </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.statCard} 
+              activeOpacity={0.8}
+              onPress={() => navigation?.navigate('Profile', { openModal: 'Stats' })}
+            >
               <LinearGradient
                 colors={['rgba(16,185,129,0.12)', 'rgba(16,185,129,0.04)']}
                 style={styles.statGradient}
               >
-                <Text style={styles.statIcon}>{isWinch ? '🚜' : '🔧'}</Text>
+                <MaterialCommunityIcons name={isWinch ? 'truck-flatbed' : 'car-cog'} size={24} color={isWinch ? colors.role.winch : colors.role.workshop} style={{ marginBottom: 8 }} />
                 <Text style={styles.statValue}>٧</Text>
                 <Text style={styles.statUnit}>عملية</Text>
                 <Text style={styles.statLabel}>{isWinch ? 'رحلات اليوم' : 'حجوزات اليوم'}</Text>
               </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.statCard} 
+              activeOpacity={0.8}
+              onPress={() => navigation?.navigate('Profile', { openModal: 'Stats' })}
+            >
               <LinearGradient
                 colors={['rgba(245,158,11,0.12)', 'rgba(245,158,11,0.04)']}
                 style={styles.statGradient}
               >
-                <Text style={styles.statIcon}>⭐</Text>
+                <MaterialCommunityIcons name="star" size={24} color="#F59E0B" style={{ marginBottom: 8 }} />
                 <Text style={styles.statValue}>٤.٨</Text>
                 <Text style={styles.statUnit}>من ٥</Text>
                 <Text style={styles.statLabel}>التقييم</Text>
               </LinearGradient>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Active Requests / Bookings */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {isWinch ? '🔔 طلبات جديدة' : '📅 حجوزات اليوم'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MaterialCommunityIcons 
+                name={isWinch ? "bell-outline" : "calendar-month-outline"} 
+                size={20} 
+                color={colors.accent.primary} 
+              />
+              <Text style={styles.sectionTitle}>
+                {isWinch ? 'طلبات جديدة' : 'حجوزات اليوم'}
+              </Text>
+            </View>
             <TouchableOpacity>
               <Text style={styles.seeAll}>عرض الكل</Text>
             </TouchableOpacity>
@@ -206,7 +255,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 key={req.id}
                 style={styles.requestCard}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('RequestAccept', { job: req })}
+                onPress={() => navigation?.navigate('RequestAccept', { job: req })}
               >
                 <LinearGradient
                   colors={['rgba(245,158,11,0.08)', 'rgba(10,21,32,0.6)']}
@@ -229,11 +278,11 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 
                   <View style={styles.requestDetails}>
                     <View style={styles.detailItem}>
-                      <Text style={styles.detailIcon}>📍</Text>
+                      <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.text.secondary} style={{ marginRight: 6 }} />
                       <Text style={styles.detailText}>{req.location}</Text>
                     </View>
                     <View style={styles.detailItem}>
-                      <Text style={styles.detailIcon}>⚠️</Text>
+                      <MaterialCommunityIcons name="alert-circle-outline" size={14} color={colors.text.secondary} style={{ marginRight: 6 }} />
                       <Text style={styles.detailText}>{req.issueType}</Text>
                     </View>
                   </View>
@@ -243,8 +292,14 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                       <Text style={styles.distanceText}>{req.distance} كم</Text>
                     </View>
                     <Text style={styles.priceText}>{req.estimatedPrice} ج.م</Text>
-                    <TouchableOpacity style={styles.acceptButton}>
-                      <Text style={styles.acceptButtonText}>قبول ←</Text>
+                    <TouchableOpacity 
+                      style={styles.acceptButton}
+                      onPress={() => navigation?.navigate('RequestAccept', { job: req })}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="arrow-back" size={16} color={colors.background.primary} />
+                        <Text style={styles.acceptButtonText}>قبول</Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
                 </LinearGradient>
@@ -257,7 +312,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 key={booking.id}
                 style={styles.bookingCard}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('CarReception', { bookingId: booking.id })}
+                onPress={() => navigation?.navigate('CarReception', { bookingId: booking.id })}
               >
                 <View style={styles.bookingTime}>
                   <Text style={styles.bookingTimeText}>{booking.scheduledTime}</Text>
@@ -279,24 +334,24 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Quick Actions */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>⚡ إجراءات سريعة</Text>
+            <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
           </View>
           <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('Wallet')}>
+            <TouchableOpacity style={styles.quickAction} onPress={() => navigation?.navigate('Wallet')}>
               <LinearGradient
                 colors={['rgba(212,160,86,0.12)', 'rgba(212,160,86,0.04)']}
                 style={styles.quickActionGradient}
               >
-                <Text style={styles.quickActionIcon}>💳</Text>
+                <MaterialCommunityIcons name="wallet-outline" size={28} color={colors.accent.primary} style={{ marginBottom: 8 }} />
                 <Text style={styles.quickActionText}>المحفظة</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAction}>
+            <TouchableOpacity style={styles.quickAction} onPress={() => navigation?.navigate('Profile')}>
               <LinearGradient
                 colors={['rgba(16,185,129,0.12)', 'rgba(16,185,129,0.04)']}
                 style={styles.quickActionGradient}
               >
-                <Text style={styles.quickActionIcon}>📊</Text>
+                <MaterialCommunityIcons name="chart-bar" size={28} color={colors.accent.emerald} style={{ marginBottom: 8 }} />
                 <Text style={styles.quickActionText}>الإحصائيات</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -305,16 +360,16 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 colors={['rgba(59,130,246,0.12)', 'rgba(59,130,246,0.04)']}
                 style={styles.quickActionGradient}
               >
-                <Text style={styles.quickActionIcon}>💬</Text>
+                <MaterialCommunityIcons name="chat-processing-outline" size={28} color="#3B82F6" style={{ marginBottom: 8 }} />
                 <Text style={styles.quickActionText}>الرسائل</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAction}>
+            <TouchableOpacity style={styles.quickAction} onPress={() => navigation?.navigate('Profile', { openModal: 'Support' })}>
               <LinearGradient
                 colors={['rgba(239,68,68,0.12)', 'rgba(239,68,68,0.04)']}
                 style={styles.quickActionGradient}
               >
-                <Text style={styles.quickActionIcon}>🆘</Text>
+                <MaterialCommunityIcons name="help-circle-outline" size={28} color="#EF4444" style={{ marginBottom: 8 }} />
                 <Text style={styles.quickActionText}>الدعم</Text>
               </LinearGradient>
             </TouchableOpacity>

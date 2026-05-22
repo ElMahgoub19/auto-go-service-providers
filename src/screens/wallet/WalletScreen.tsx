@@ -10,23 +10,29 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { useAppSelector } from '../../hooks';
+import { useAppSelector, useAppDispatch } from '../../hooks';
+import { requestPayout, addTransaction } from '../../store/slices/walletSlice';
 
 interface Props {
-  navigation: any;
+  navigation?: any;
 }
 
 const PAYOUT_METHODS = [
-  { key: 'vodafone_cash', label: 'فودافون كاش', icon: '📱', color: '#E60000' },
-  { key: 'instapay', label: 'إنستا باي', icon: '🏦', color: '#4A90D9' },
-  { key: 'fawry', label: 'فوري', icon: '💳', color: '#F5A623' },
+  { key: 'vodafone_cash', label: 'فودافون كاش', icon: 'cellphone' as const, color: '#E60000' },
+  { key: 'instapay', label: 'إنستا باي', icon: 'bank-outline' as const, color: '#4A90D9' },
+  { key: 'fawry', label: 'فوري', icon: 'credit-card-outline' as const, color: '#F5A623' },
 ];
 
 const WalletScreen: React.FC<Props> = ({ navigation }) => {
+  const dispatch = useAppDispatch();
   const wallet = useAppSelector((state) => state.wallet);
+  const insets = useSafeAreaInsets();
+  
   const [selectedMethod, setSelectedMethod] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -36,23 +42,49 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
       Alert.alert('تنبيه', 'اختار طريقة السحب وحدد المبلغ');
       return;
     }
-    const amount = parseInt(withdrawAmount);
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('تنبيه', 'المبلغ غير صحيح');
+      return;
+    }
     if (amount > wallet.balance.available) {
       Alert.alert('تنبيه', 'المبلغ أكبر من الرصيد المتاح');
       return;
     }
-    Alert.alert('✅ تم بنجاح', `تم إرسال طلب سحب ${amount} ج.م عبر ${PAYOUT_METHODS.find(m => m.key === selectedMethod)?.label}`);
+    
+    const methodName = PAYOUT_METHODS.find(m => m.key === selectedMethod)?.label || '';
+    
+    dispatch(requestPayout({
+      id: Math.random().toString(),
+      amount: amount,
+      method: selectedMethod as 'vodafone_cash' | 'instapay' | 'fawry',
+      accountNumber: '',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }));
+
+    dispatch(addTransaction({
+      id: Math.random().toString(),
+      type: 'withdrawal',
+      amount: -amount,
+      description: `سحب رصيد عبر ${methodName}`,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }));
+
+    Alert.alert('تم بنجاح', `تم إرسال طلب سحب ${amount} ج.م عبر ${methodName}`);
     setShowWithdraw(false);
     setWithdrawAmount('');
+    setSelectedMethod('');
   };
 
-  const getTransactionIcon = (type: string) => {
+  const getTransactionIcon = (type: string): keyof typeof MaterialCommunityIcons.glyphMap => {
     switch (type) {
-      case 'earning': return '💰';
-      case 'withdrawal': return '📤';
-      case 'bonus': return '🎁';
-      case 'deduction': return '📉';
-      default: return '💵';
+      case 'earning': return 'cash-plus';
+      case 'withdrawal': return 'cash-minus';
+      case 'bonus': return 'gift-outline';
+      case 'deduction': return 'trending-down';
+      default: return 'cash';
     }
   };
 
@@ -70,9 +102,15 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
       <LinearGradient colors={['#0A1520', '#0D2B2D', '#0A1520']} style={styles.gradient}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]} 
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
-          <Text style={styles.headerTitle}>💳 المحفظة</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing['2xl'] }}>
+            <MaterialCommunityIcons name="wallet-outline" size={28} color={colors.accent.primary} />
+            <Text style={[styles.headerTitle, { marginBottom: 0 }]}>المحفظة</Text>
+          </View>
 
           {/* Balance Card */}
           <View style={styles.balanceCard}>
@@ -108,7 +146,7 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
                 onPress={() => setShowWithdraw(!showWithdraw)}
               >
                 <Text style={styles.withdrawButtonText}>
-                  {showWithdraw ? 'إلغاء' : 'سحب الرصيد ←'}
+                  {showWithdraw ? 'إلغاء' : 'سحب الرصيد'}
                 </Text>
               </TouchableOpacity>
             </LinearGradient>
@@ -128,7 +166,11 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
                     ]}
                     onPress={() => setSelectedMethod(method.key)}
                   >
-                    <Text style={styles.methodIcon}>{method.icon}</Text>
+                    <MaterialCommunityIcons 
+                      name={method.icon} 
+                      size={24} 
+                      color={selectedMethod === method.key ? colors.accent.primary : '#8A99A8'} 
+                    />
                     <Text style={[
                       styles.methodLabel,
                       selectedMethod === method.key && { color: colors.accent.primary },
@@ -162,11 +204,14 @@ const WalletScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Transactions */}
           <View style={styles.transactionsSection}>
-            <Text style={styles.sectionTitle}>📋 سجل المعاملات</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.lg }}>
+              <MaterialCommunityIcons name="file-document-edit-outline" size={20} color={colors.accent.primary} />
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>سجل المعاملات</Text>
+            </View>
             {wallet.transactions.map((tx) => (
               <View key={tx.id} style={styles.transactionRow}>
                 <View style={styles.txIconContainer}>
-                  <Text style={styles.txIcon}>{getTransactionIcon(tx.type)}</Text>
+                  <MaterialCommunityIcons name={getTransactionIcon(tx.type)} size={18} color={getTransactionColor(tx.type)} />
                 </View>
                 <View style={styles.txInfo}>
                   <Text style={styles.txDescription}>{tx.description}</Text>

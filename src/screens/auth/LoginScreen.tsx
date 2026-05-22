@@ -11,24 +11,28 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { UserRole } from '../../types';
 
 interface Props {
-  navigation: any;
-  route: { params: { role: UserRole } };
+  navigation?: any;
+  route?: any;
 }
 
 const LoginScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { role } = route.params;
+  const role = route?.params?.role || 'winch_driver';
+  const insets = useSafeAreaInsets();
   const [phone, setPhone] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const roleLabel = role === 'winch_driver' ? 'سائق الونش' : 'مركز الصيانة';
   const roleColor = role === 'winch_driver' ? colors.role.winch : colors.role.workshop;
+  const roleIcon = role === 'winch_driver' ? 'truck-flatbed' : 'car-cog';
 
   const formatPhone = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
@@ -48,7 +52,7 @@ const LoginScreen: React.FC<Props> = ({ navigation, route }) => {
       ]).start();
       return;
     }
-    navigation.navigate('OTPVerification', { phone, role });
+    navigation?.navigate('OTPVerification', { phone, role });
   };
 
   return (
@@ -56,19 +60,22 @@ const LoginScreen: React.FC<Props> = ({ navigation, route }) => {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+        style={[styles.content, { paddingTop: insets.top + 20 }]}
       >
         {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>→</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
+          <Ionicons name="arrow-forward" size={22} color={colors.text.primary} />
         </TouchableOpacity>
 
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.roleBadge, { backgroundColor: `${roleColor}20` }]}>
-            <Text style={[styles.roleBadgeText, { color: roleColor }]}>
-              {role === 'winch_driver' ? '🚜' : '🏭'} {roleLabel}
-            </Text>
+            <View style={styles.roleBadgeContent}>
+              <MaterialCommunityIcons name={roleIcon as any} size={16} color={roleColor} style={{ marginRight: 6 }} />
+              <Text style={[styles.roleBadgeText, { color: roleColor }]}>
+                {roleLabel}
+              </Text>
+            </View>
           </View>
           <Text style={styles.title}>تسجيل الدخول</Text>
           <Text style={styles.subtitle}>
@@ -85,7 +92,7 @@ const LoginScreen: React.FC<Props> = ({ navigation, route }) => {
           ]}
         >
           <View style={styles.countryCode}>
-            <Text style={styles.flag}>🇪🇬</Text>
+            <Text style={styles.countryName}>مصر</Text>
             <Text style={styles.countryCodeText}>20+</Text>
           </View>
           <View style={styles.inputDivider} />
@@ -126,7 +133,7 @@ const LoginScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Info */}
         <View style={styles.infoBox}>
-          <Text style={styles.infoIcon}>💡</Text>
+          <Ionicons name="information-circle" size={20} color={colors.accent.primary} style={{ marginTop: 2 }} />
           <Text style={styles.infoText}>
             هنبعتلك رسالة SMS فيها كود مكون من 4 أرقام للتحقق من رقمك
           </Text>
@@ -171,6 +178,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     marginBottom: spacing.lg,
   },
+  roleBadgeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   roleBadgeText: {
     ...typography.labelSmall,
   },
@@ -208,8 +219,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  flag: {
-    fontSize: 22,
+  countryName: {
+    ...typography.body,
+    color: colors.text.secondary,
   },
   countryCodeText: {
     ...typography.label,

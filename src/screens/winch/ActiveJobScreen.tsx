@@ -8,23 +8,26 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 
 interface Props {
-  navigation: any;
-  route: { params: { jobId: string } };
+  navigation?: any;
+  route?: { params: { jobId: string } };
 }
 
 const STATUS_STEPS = [
-  { key: 'on_the_way', label: 'أنا في الطريق', icon: '🚜', description: 'إبلاغ العميل إنك في الطريق' },
-  { key: 'arrived', label: 'وصلت للموقع', icon: '📍', description: 'تأكيد الوصول لموقع العميل' },
-  { key: 'car_picked_up', label: 'تم رفع السيارة', icon: '🏗️', description: 'التقاط صورة للسيارة (توثيق)' },
-  { key: 'delivered', label: 'تم التوصيل', icon: '✅', description: 'تسليم السيارة للوجهة المطلوبة' },
+  { key: 'on_the_way', label: 'أنا في الطريق', iconName: 'truck-fast-outline' as const, description: 'إبلاغ العميل إنك في الطريق' },
+  { key: 'arrived', label: 'وصلت للموقع', iconName: 'map-marker-check' as const, description: 'تأكيد الوصول لموقع العميل' },
+  { key: 'car_picked_up', label: 'تم رفع السيارة', iconName: 'crane' as const, description: 'التقاط صورة للسيارة (توثيق)' },
+  { key: 'delivered', label: 'تم التوصيل', iconName: 'check-circle' as const, description: 'تسليم السيارة للوجهة المطلوبة' },
 ];
 
 const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(0);
   const [photoTaken, setPhotoTaken] = useState(false);
 
@@ -38,7 +41,7 @@ const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
       setCurrentStep(currentStep + 1);
     } else {
       // Job completed
-      navigation.replace('JobCompletion', { jobId: route.params.jobId });
+      navigation.replace('JobCompletion', { jobId: route?.params?.jobId || '' });
     }
   };
 
@@ -48,10 +51,19 @@ const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
       <LinearGradient colors={['#0A1520', '#0D2B2D', '#0A1520']} style={styles.gradient}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + spacing.lg },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>🚜 رحلة جارية</Text>
+            <View style={styles.headerTitleRow}>
+              <MaterialCommunityIcons name="truck-fast-outline" size={24} color={colors.accent.primary} />
+              <Text style={styles.headerTitle}>رحلة جارية</Text>
+            </View>
             <View style={styles.liveBadge}>
               <View style={styles.liveIndicator} />
               <Text style={styles.liveText}>LIVE</Text>
@@ -64,7 +76,7 @@ const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
               colors={['rgba(16,185,129,0.08)', 'rgba(10,21,32,0.6)']}
               style={styles.mapPlaceholder}
             >
-              <Text style={styles.mapIcon}>🗺️</Text>
+              <MaterialCommunityIcons name="google-maps" size={40} color={colors.text.tertiary} style={{ marginBottom: spacing.sm }} />
               <Text style={styles.mapText}>التتبع اللحظي على الخريطة</Text>
             </LinearGradient>
           </View>
@@ -79,10 +91,10 @@ const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text style={styles.customerCar}>BMW 320i - أبيض</Text>
             </View>
             <TouchableOpacity style={styles.callButton}>
-              <Text style={styles.callIcon}>📞</Text>
+              <Ionicons name="call" size={20} color={colors.status.success} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.chatButton}>
-              <Text style={styles.chatIcon}>💬</Text>
+              <MaterialCommunityIcons name="chat-outline" size={20} color={colors.status.info} />
             </TouchableOpacity>
           </View>
 
@@ -102,9 +114,17 @@ const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
                       isCompleted && styles.stepDotCompleted,
                       isActive && styles.stepDotActive,
                     ]}>
-                      <Text style={styles.stepDotText}>
-                        {isCompleted ? '✓' : step.icon}
-                      </Text>
+                      <MaterialCommunityIcons
+                        name={isCompleted ? 'check' : step.iconName}
+                        size={18}
+                        color={
+                          isCompleted
+                            ? colors.status.success
+                            : isActive
+                            ? colors.accent.primary
+                            : colors.text.tertiary
+                        }
+                      />
                     </View>
                     <View style={styles.stepContent}>
                       <Text style={[
@@ -120,9 +140,19 @@ const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
                           style={[styles.photoButton, photoTaken && styles.photoButtonDone]}
                           onPress={() => setPhotoTaken(true)}
                         >
-                          <Text style={styles.photoButtonText}>
-                            {photoTaken ? '✅ تم التصوير' : '📷 التقاط صورة السيارة'}
-                          </Text>
+                          <View style={styles.photoButtonContent}>
+                            <MaterialCommunityIcons
+                              name={photoTaken ? 'check-circle' : 'camera'}
+                              size={16}
+                              color={photoTaken ? colors.status.success : colors.status.info}
+                            />
+                            <Text style={[
+                              styles.photoButtonText,
+                              photoTaken && { color: colors.status.success },
+                            ]}>
+                              {photoTaken ? 'تم التصوير' : 'التقاط صورة السيارة'}
+                            </Text>
+                          </View>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -157,13 +187,26 @@ const ActiveJobScreen: React.FC<Props> = ({ navigation, route }) => {
               }
               style={styles.actionButtonGradient}
             >
-              <Text style={styles.actionButtonText}>
-                {isLastStep
-                  ? 'إنهاء الرحلة ✓'
-                  : currentStep === 2 && !photoTaken
-                  ? 'التقط صورة السيارة أولاً 📷'
-                  : `${STATUS_STEPS[currentStep + 1]?.label || 'التالي'} ←`}
-              </Text>
+              <View style={styles.actionButtonRow}>
+                {isLastStep ? (
+                  <>
+                    <Text style={styles.actionButtonText}>إنهاء الرحلة</Text>
+                    <MaterialCommunityIcons name="check" size={20} color={colors.background.primary} />
+                  </>
+                ) : currentStep === 2 && !photoTaken ? (
+                  <>
+                    <Text style={styles.actionButtonText}>التقط صورة السيارة أولاً</Text>
+                    <MaterialCommunityIcons name="camera" size={20} color={colors.background.primary} />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.actionButtonText}>
+                      {STATUS_STEPS[currentStep + 1]?.label || 'التالي'}
+                    </Text>
+                    <MaterialCommunityIcons name="arrow-left" size={20} color={colors.background.primary} />
+                  </>
+                )}
+              </View>
             </LinearGradient>
           </TouchableOpacity>
         </ScrollView>
@@ -176,17 +219,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.primary },
   gradient: { flex: 1 },
   scrollContent: {
-    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 16 : 56,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing['4xl'],
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  headerTitle: { ...typography.h3, color: colors.text.primary },
+  headerTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    textAlign: 'right',
+  },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,10 +272,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16,185,129,0.15)',
     borderRadius: borderRadius.xl,
   },
-  mapIcon: { fontSize: 40, marginBottom: spacing.sm },
-  mapText: { ...typography.body, color: colors.text.tertiary },
+  mapText: { ...typography.body, color: colors.text.tertiary, textAlign: 'right' },
   customerCard: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: colors.background.glass,
     borderRadius: borderRadius.lg,
@@ -244,8 +294,8 @@ const styles = StyleSheet.create({
   },
   customerAvatarText: { ...typography.label, color: colors.role.winch },
   customerInfo: { flex: 1 },
-  customerName: { ...typography.label, color: colors.text.primary },
-  customerCar: { ...typography.bodySmall, color: colors.text.secondary },
+  customerName: { ...typography.label, color: colors.text.primary, textAlign: 'right' },
+  customerCar: { ...typography.bodySmall, color: colors.text.secondary, textAlign: 'right' },
   callButton: {
     width: 42,
     height: 42,
@@ -254,7 +304,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  callIcon: { fontSize: 20 },
   chatButton: {
     width: 42,
     height: 42,
@@ -263,7 +312,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  chatIcon: { fontSize: 20 },
   stepsContainer: {
     backgroundColor: colors.background.glass,
     borderRadius: borderRadius.xl,
@@ -276,9 +324,10 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.text.primary,
     marginBottom: spacing.xl,
+    textAlign: 'right',
   },
   stepRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     gap: spacing.md,
   },
@@ -305,18 +354,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  stepDotText: { fontSize: 16 },
   stepContent: { flex: 1, paddingTop: spacing.xs },
   stepLabel: {
     ...typography.label,
     color: colors.text.tertiary,
     marginBottom: 2,
+    textAlign: 'right',
   },
   stepLabelCompleted: { color: colors.status.success },
   stepLabelActive: { color: colors.accent.primary },
   stepDescription: {
     ...typography.bodySmall,
     color: colors.text.muted,
+    textAlign: 'right',
   },
   photoButton: {
     marginTop: spacing.sm,
@@ -324,13 +374,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
     borderWidth: 1,
     borderColor: 'rgba(59,130,246,0.25)',
   },
   photoButtonDone: {
     backgroundColor: 'rgba(16,185,129,0.12)',
     borderColor: 'rgba(16,185,129,0.25)',
+  },
+  photoButtonContent: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   photoButtonText: {
     ...typography.labelSmall,
@@ -340,8 +395,9 @@ const styles = StyleSheet.create({
     width: 2,
     height: 24,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    marginLeft: 19,
+    marginRight: 19,
     marginVertical: spacing.xs,
+    alignSelf: 'flex-end',
   },
   stepConnectorCompleted: {
     backgroundColor: colors.status.success,
@@ -363,6 +419,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: borderRadius.lg,
+  },
+  actionButtonRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   actionButtonText: {
     ...typography.button,

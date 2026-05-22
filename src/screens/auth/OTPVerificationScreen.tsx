@@ -9,18 +9,23 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { UserRole } from '../../types';
 
 interface Props {
-  navigation: any;
-  route: { params: { phone: string; role: UserRole } };
+  navigation?: any;
+  route?: any;
 }
 
 const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { phone, role } = route.params;
+  const phone = route?.params?.phone || '';
+  const role = route?.params?.role || 'winch_driver';
+  const insets = useSafeAreaInsets();
+  
   const [otp, setOtp] = useState(['', '', '', '']);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -28,6 +33,7 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (canResend) return;
     const interval = setInterval(() => {
       setTimer((prev) => {
         if (prev <= 1) {
@@ -39,7 +45,7 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [canResend]);
 
   useEffect(() => {
     Animated.loop(
@@ -74,7 +80,7 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleVerify = (code: string) => {
     // Mock: accept 1234
     if (code === '1234') {
-      navigation.navigate('DocumentUpload', { role });
+      navigation?.navigate('DocumentUpload', { role });
     }
   };
 
@@ -87,17 +93,17 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <LinearGradient colors={['#060E17', '#0D2B2D', '#0A1520']} style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingTop: insets.top + 20 }]}>
         {/* Back */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>→</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
+          <Ionicons name="arrow-forward" size={22} color={colors.text.primary} />
         </TouchableOpacity>
 
         {/* Header */}
         <View style={styles.header}>
           <Animated.View style={[styles.iconContainer, { transform: [{ scale: pulseAnim }] }]}>
             <LinearGradient colors={['#D4A056', '#C4842D']} style={styles.iconGradient}>
-              <Text style={styles.icon}>🔐</Text>
+              <MaterialCommunityIcons name="lock-outline" size={32} color="#0A1520" />
             </LinearGradient>
           </Animated.View>
           <Text style={styles.title}>كود التحقق</Text>
@@ -141,7 +147,7 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Dev Hint */}
         <View style={styles.devHint}>
-          <Text style={styles.devHintIcon}>🧪</Text>
+          <Ionicons name="flask-outline" size={18} color={colors.status.info} style={{ marginRight: 6 }} />
           <Text style={styles.devHintText}>
             للتجربة: استخدم الكود 1234
           </Text>

@@ -9,6 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -17,43 +20,124 @@ import { useAppDispatch } from '../../hooks';
 import { loginSuccess } from '../../store/slices/authSlice';
 
 interface Props {
-  navigation: any;
-  route: { params: { role: UserRole } };
+  navigation?: any;
+  route?: any;
 }
 
 interface DocumentItem {
   id: string;
   label: string;
   description: string;
-  icon: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   isUploaded: boolean;
+  uri?: string;
 }
 
 const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { role } = route.params;
+  const role = route?.params?.role || 'winch_driver';
   const isWinch = role === 'winch_driver';
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
 
   const [documents, setDocuments] = useState<DocumentItem[]>(
     isWinch
       ? [
-          { id: 'national_id', label: 'البطاقة الشخصية', description: 'صورة واضحة للبطاقة - وش وضهر', icon: '🪨', isUploaded: false },
-          { id: 'license', label: 'رخصة القيادة', description: 'رخصة سارية المفعول', icon: '📄', isUploaded: false },
-          { id: 'winch_photo', label: 'صورة الونش', description: 'صورة كاملة للونش من الأمام', icon: '🚜', isUploaded: false },
-          { id: 'winch_plate', label: 'لوحة الونش', description: 'صورة واضحة للوحة المعدنية', icon: '🔢', isUploaded: false },
+          { id: 'national_id', label: 'البطاقة الشخصية', description: 'صورة واضحة للبطاقة - وش وضهر', icon: 'card-account-details-outline', isUploaded: false },
+          { id: 'license', label: 'رخصة القيادة', description: 'رخصة سارية المفعول', icon: 'card-bulleted-outline', isUploaded: false },
+          { id: 'winch_photo', label: 'صورة الونش', description: 'صورة كاملة للونش من الأمام', icon: 'truck-flatbed', isUploaded: false },
+          { id: 'winch_plate', label: 'لوحة الونش', description: 'صورة واضحة للوحة المعدنية', icon: 'car-info', isUploaded: false },
         ]
       : [
-          { id: 'commercial_register', label: 'السجل التجاري', description: 'صورة سجل تجاري ساري', icon: '📋', isUploaded: false },
-          { id: 'workshop_front', label: 'واجهة المركز', description: 'صورة لواجهة مركز الصيانة', icon: '🏭', isUploaded: false },
-          { id: 'workshop_inside', label: 'صورة من الداخل', description: 'صورة لمنطقة العمل', icon: '🔧', isUploaded: false },
-          { id: 'location', label: 'موقع المركز', description: 'تحديد الموقع على الخريطة', icon: '📍', isUploaded: false },
+          { id: 'commercial_register', label: 'السجل التجاري', description: 'صورة سجل تجاري ساري', icon: 'file-certificate-outline', isUploaded: false },
+          { id: 'workshop_front', label: 'واجهة المركز', description: 'صورة لواجهة مركز الصيانة', icon: 'storefront-outline', isUploaded: false },
+          { id: 'workshop_inside', label: 'صورة من الداخل', description: 'صورة لمنطقة العمل', icon: 'tools', isUploaded: false },
+          { id: 'location', label: 'موقع المركز', description: 'تحديد الموقع على الخريطة', icon: 'map-marker-outline', isUploaded: false },
         ]
   );
 
-  const handleUpload = (docId: string) => {
-    // Mock upload
-    setDocuments((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, isUploaded: true } : d))
+  const handleUpload = async (docId: string) => {
+    if (docId === 'location') {
+      Alert.alert(
+        'تحديد الموقع',
+        'هل تود تحديد الموقع الجغرافي لمركز الصيانة الخاص بك؟',
+        [
+          { text: 'إلغاء', style: 'cancel' },
+          {
+            text: 'تحديد الموقع الحالي',
+            onPress: () => {
+              setDocuments((prev) =>
+                prev.map((d) => (d.id === docId ? { ...d, isUploaded: true, uri: 'mock_location' } : d))
+              );
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'رفع المستند',
+      'اختر طريقة رفع المستند أو الصورة:',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'استخدام صورة نموذجية (افتراضية)',
+          onPress: () => {
+            setDocuments((prev) =>
+              prev.map((d) => (d.id === docId ? { ...d, isUploaded: true, uri: 'default_template' } : d))
+            );
+          },
+        },
+        {
+          text: 'من مكتبة الصور',
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('خطأ', 'نحتاج لإذن الوصول لمعرض الصور لرفع المستند');
+                return;
+              }
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.8,
+              });
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const selectedUri = result.assets[0].uri;
+                setDocuments((prev) =>
+                  prev.map((d) => (d.id === docId ? { ...d, isUploaded: true, uri: selectedUri } : d))
+                );
+              }
+            } catch (err) {
+              Alert.alert('خطأ', 'حدث خطأ أثناء اختيار الصورة');
+            }
+          },
+        },
+        {
+          text: 'التقاط صورة بالكاميرا',
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('خطأ', 'نحتاج لإذن الكاميرا لالتقاط صورة المستند');
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                quality: 0.8,
+              });
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                const selectedUri = result.assets[0].uri;
+                setDocuments((prev) =>
+                  prev.map((d) => (d.id === docId ? { ...d, isUploaded: true, uri: selectedUri } : d))
+                );
+              }
+            } catch (err) {
+              Alert.alert('خطأ', 'حدث خطأ أثناء التقاط الصورة');
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -61,7 +145,6 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSubmit = () => {
     if (allUploaded) {
-      // التحويل مباشرة للتطبيق (الموافقة التلقائية للتجربة)
       dispatch(
         loginSuccess({
           id: 'provider_123',
@@ -86,17 +169,17 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Back */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>→</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
+          <Ionicons name="arrow-forward" size={22} color={colors.text.primary} />
         </TouchableOpacity>
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.stepBadge}>الخطوة الأخيرة ✨</Text>
+          <Text style={styles.stepBadge}>الخطوة الأخيرة</Text>
           <Text style={styles.title}>رفع المستندات</Text>
           <Text style={styles.subtitle}>
             {isWinch
@@ -132,15 +215,19 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
               activeOpacity={0.8}
             >
               <View style={[styles.docIconContainer, doc.isUploaded && styles.docIconUploaded]}>
-                <Text style={styles.docIcon}>{doc.isUploaded ? '✅' : doc.icon}</Text>
+                {doc.isUploaded ? (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.status.success} />
+                ) : (
+                  <MaterialCommunityIcons name={doc.icon} size={24} color={colors.accent.primary} />
+                )}
               </View>
-              <View style={styles.docInfo}>
+              <View style={doc.isUploaded ? [styles.docInfo, { opacity: 0.7 }] : styles.docInfo}>
                 <Text style={styles.docLabel}>{doc.label}</Text>
                 <Text style={styles.docDescription}>{doc.description}</Text>
               </View>
               <View style={[styles.uploadBadge, doc.isUploaded && styles.uploadBadgeDone]}>
                 <Text style={[styles.uploadBadgeText, doc.isUploaded && styles.uploadBadgeTextDone]}>
-                  {doc.isUploaded ? 'تم ✓' : 'ارفع'}
+                  {doc.isUploaded ? 'تم' : 'ارفع'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -152,6 +239,7 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
           style={[styles.submitButton, !allUploaded && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           activeOpacity={0.8}
+          disabled={!allUploaded}
         >
           <LinearGradient
             colors={allUploaded ? ['#D4A056', '#C4842D'] : ['rgba(212,160,86,0.2)', 'rgba(196,132,45,0.2)']}
