@@ -12,12 +12,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useDispatch } from 'react-redux';
+import { loginSuccess } from '../../store/slices/authSlice';
+import { providerApi } from '../../services/providerApi';
+import { saveToken } from '../../services/api';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { UserRole } from '../../types';
 import { useAppDispatch } from '../../hooks';
-import { loginSuccess } from '../../store/slices/authSlice';
 
 interface Props {
   navigation?: any;
@@ -35,9 +38,11 @@ interface DocumentItem {
 
 const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
   const role = route?.params?.role || 'winch_driver';
+  const phone = route?.params?.phone || '01000000000';
   const isWinch = role === 'winch_driver';
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [documents, setDocuments] = useState<DocumentItem[]>(
     isWinch
@@ -143,26 +148,73 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const allUploaded = documents.every((d) => d.isUploaded);
 
-  const handleSubmit = () => {
-    if (allUploaded) {
-      dispatch(
-        loginSuccess({
-          id: 'provider_123',
-          name: 'شريك أوتو جو',
-          phone: '+201012345678',
-          role: role,
-          rating: 4.8,
-          totalJobs: 0,
-          isOnline: false,
-          isVerified: true,
-          verificationStatus: 'approved',
-          createdAt: new Date().toISOString(),
-        })
-      );
-    } else {
+  const dispatchLogin = (data: any) => {
+    // Backend returns { driver, token } for both register & login
+    const driverData = data.driver ?? data.provider ?? data;
+    if (!driverData || !driverData.id) {
+      throw new Error('بيانات المزود غير مكتملة من الخادم');
+    }
+    saveToken(data.token || '');
+    dispatch(
+      loginSuccess({
+        id: driverData.id,
+        name: driverData.name,
+        phone: driverData.phone,
+        role: driverData.towType === 'winch' ? 'winch_driver' : 'maintenance_center',
+        rating: parseFloat(driverData.rating) || 5.0,
+        totalJobs: 0,
+        isOnline: driverData.isOnline ?? false,
+        isVerified: true,
+        verificationStatus: 'approved',
+        createdAt: driverData.createdAt ?? new Date().toISOString(),
+      })
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!allUploaded) {
       Alert.alert('تنبيه', 'لازم ترفع كل المستندات المطلوبة');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 1) Try to register
+      try {
+        const res = await providerApi.register({
+          name: role === 'winch_driver' ? 'سائق ونش' : 'مركز صيانة',
+          phone,
+          password: 'password123',
+          role,
+        });
+        if (res.success) {
+          dispatchLogin(res.data);
+          return;
+        }
+      } catch (registerErr: any) {
+        // If phone already registered (409), fall through to login
+        if (registerErr?.status !== 409 && registerErr?.message !== 'رقم الهاتف مسجل بالفعل') {
+          throw registerErr; // Real error, rethrow
+        }
+        // Phone exists → login instead
+        console.log('[Auth] Phone exists, trying login...');
+      }
+
+      // 2) Fallback: Login with existing account
+      const loginRes = await providerApi.login(phone, 'password123');
+      if (loginRes.success) {
+        dispatchLogin(loginRes.data);
+      } else {
+        throw new Error('فشل تسجيل الدخول');
+      }
+    } catch (err: any) {
+      console.error('Registration failed:', err);
+      Alert.alert('خطأ', err?.message || 'حدث خطأ، تأكد من الاتصال بالخادم وأعد المحاولة');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
 
   return (
     <LinearGradient colors={['#060E17', '#0D2B2D', '#0A1520']} style={styles.container}>
@@ -172,12 +224,10 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
         <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
           <Ionicons name="arrow-forward" size={22} color={colors.text.primary} />
         </TouchableOpacity>
 
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.stepBadge}>الخطوة الأخيرة</Text>
           <Text style={styles.title}>رفع المستندات</Text>
@@ -188,7 +238,6 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
           </Text>
         </View>
 
-        {/* Progress */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <View
@@ -205,7 +254,6 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
           </Text>
         </View>
 
-        {/* Document Cards */}
         <View style={styles.documentsContainer}>
           {documents.map((doc) => (
             <TouchableOpacity
@@ -234,19 +282,18 @@ const DocumentUploadScreen: React.FC<Props> = ({ navigation, route }) => {
           ))}
         </View>
 
-        {/* Submit */}
         <TouchableOpacity
           style={[styles.submitButton, !allUploaded && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           activeOpacity={0.8}
-          disabled={!allUploaded}
+          disabled={!allUploaded || isSubmitting}
         >
           <LinearGradient
-            colors={allUploaded ? ['#D4A056', '#C4842D'] : ['rgba(212,160,86,0.2)', 'rgba(196,132,45,0.2)']}
+            colors={allUploaded && !isSubmitting ? ['#D4A056', '#C4842D'] : ['rgba(212,160,86,0.2)', 'rgba(196,132,45,0.2)']}
             style={styles.submitGradient}
           >
             <Text style={[styles.submitText, !allUploaded && styles.submitTextDisabled]}>
-              دخول التطبيق 🚀
+              {isSubmitting ? 'جاري التسجيل...' : 'دخول التطبيق 🚀'}
             </Text>
           </LinearGradient>
         </TouchableOpacity>

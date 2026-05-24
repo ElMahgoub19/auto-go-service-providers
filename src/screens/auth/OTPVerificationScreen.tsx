@@ -80,7 +80,7 @@ const OTPVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleVerify = (code: string) => {
     // Mock: accept 1234
     if (code === '1234') {
-      navigation?.navigate('DocumentUpload', { role });
+      navigation?.navigate('DocumentUpload', { role, phone });
     }
   };
 

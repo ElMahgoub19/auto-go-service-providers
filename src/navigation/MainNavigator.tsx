@@ -23,6 +23,13 @@ import JobCompletionScreen from '../screens/winch/JobCompletionScreen';
 import CarReceptionScreen from '../screens/workshop/CarReceptionScreen';
 import ProgressUpdateScreen from '../screens/workshop/ProgressUpdateScreen';
 
+// Service Flow screens (shared, role-agnostic)
+import OrderRequestScreen from '../screens/serviceFlow/OrderRequestScreen';
+import TrackingMapScreen from '../screens/serviceFlow/TrackingMapScreen';
+import FaultDiagnosisScreen from '../screens/serviceFlow/FaultDiagnosisScreen';
+import InvoiceScreen from '../screens/serviceFlow/InvoiceScreen';
+import ServiceCompletedScreen from '../screens/serviceFlow/ServiceCompletedScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -73,6 +80,12 @@ const JobsStack = ({ role }: { role: string }) => (
         <Stack.Screen name="ProgressUpdate" component={ProgressUpdateScreen} />
       </>
     )}
+    {/* ── Service Flow (shared across roles) ── */}
+    <Stack.Screen name="OrderRequest" component={OrderRequestScreen} />
+    <Stack.Screen name="TrackingMap" component={TrackingMapScreen} />
+    <Stack.Screen name="FaultDiagnosis" component={FaultDiagnosisScreen} />
+    <Stack.Screen name="Invoice" component={InvoiceScreen} />
+    <Stack.Screen name="ServiceCompleted" component={ServiceCompletedScreen} />
   </Stack.Navigator>
 );
 

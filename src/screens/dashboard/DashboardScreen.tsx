@@ -20,6 +20,8 @@ import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { useAppSelector, useAppDispatch } from '../../hooks';
 import { toggleOnline } from '../../store/slices/authSlice';
+import socketService from '../../services/socket';
+import { providerApi } from '../../services/providerApi';
 
 const { width } = Dimensions.get('window');
 
@@ -121,8 +123,58 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     }).start();
   }, []);
 
-  const handleToggleOnline = () => {
-    dispatch(toggleOnline());
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load initial pending requests
+    const fetchRequests = async () => {
+      try {
+        const res = await providerApi.getPendingRequests();
+        if (res.success) {
+          setPendingRequests(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to load pending requests:', err);
+      }
+    };
+    
+    if (isOnline) {
+      fetchRequests();
+    }
+  }, [isOnline]);
+
+  useEffect(() => {
+    // Connect to Socket.IO if driver is logged in
+    // Assuming provider ID is available or we use a static one for demo
+    const driverId = provider?.id || 'demo_driver_123';
+    
+    const socket = socketService.connect(driverId);
+    
+    if (socket) {
+      // Listen for new orders
+      socket.on('order:new', (order) => {
+        console.log('[Socket] New order received!', order);
+        setPendingRequests((prev) => [order, ...prev]);
+        
+        // Optional: show local notification or navigate directly
+      });
+    }
+
+    return () => {
+      // Cleanup
+      socket?.off('order:new');
+      socketService.disconnect();
+    };
+  }, [provider?.id]);
+
+  const handleToggleOnline = async () => {
+    try {
+      const newStatus = !isOnline;
+      await providerApi.setOnlineStatus(newStatus);
+      dispatch(toggleOnline());
+    } catch (err) {
+      console.error('Failed to update online status:', err);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -249,62 +301,68 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           {isWinch ? (
-            // Winch Requests
-            mockWinchRequests.map((req) => (
-              <TouchableOpacity
-                key={req.id}
-                style={styles.requestCard}
-                activeOpacity={0.85}
-                onPress={() => navigation?.navigate('RequestAccept', { job: req })}
-              >
-                <LinearGradient
-                  colors={['rgba(245,158,11,0.08)', 'rgba(10,21,32,0.6)']}
-                  style={styles.requestGradient}
+            pendingRequests.length > 0 ? (
+              pendingRequests.map((req, index) => (
+                <TouchableOpacity
+                  key={req.orderId || req.id || index}
+                  style={styles.requestCard}
+                  activeOpacity={0.85}
+                  onPress={() => navigation?.navigate('OrderRequest', { job: req })}
                 >
-                  <View style={styles.requestHeader}>
-                    <View style={styles.requestCustomer}>
-                      <View style={styles.customerAvatar}>
-                        <Text style={styles.customerAvatarText}>
-                          {req.customerName.charAt(0)}
-                        </Text>
+                  <LinearGradient colors={['rgba(30,41,59,0.95)', 'rgba(15,23,42,0.95)']} style={styles.requestGradient}>
+                    {/* Header */}
+                    <View style={styles.requestHeader}>
+                      <View style={styles.requestCustomer}>
+                        <View style={styles.customerAvatar}>
+                          <MaterialCommunityIcons name="account" size={24} color={colors.accent.primary} />
+                        </View>
+                        <View>
+                          <Text style={styles.customerName}>{req.customer?.name || req.customerName}</Text>
+                          <Text style={styles.carType}>{req.vehicle?.type || req.carType} • {req.vehicle?.plate}</Text>
+                        </View>
                       </View>
-                      <View>
-                        <Text style={styles.customerName}>{req.customerName}</Text>
-                        <Text style={styles.carType}>{req.carType}</Text>
+                      <View style={styles.distanceBadge}>
+                        <MaterialCommunityIcons name="map-marker-distance" size={14} color={colors.background.primary} />
+                        <Text style={styles.distanceText}>{req.distance || 'غير محدد'} كم</Text>
                       </View>
                     </View>
-                    <Text style={styles.timeAgo}>{req.timeAgo}</Text>
-                  </View>
 
-                  <View style={styles.requestDetails}>
-                    <View style={styles.detailItem}>
-                      <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.text.secondary} style={{ marginRight: 6 }} />
-                      <Text style={styles.detailText}>{req.location}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                      <MaterialCommunityIcons name="alert-circle-outline" size={14} color={colors.text.secondary} style={{ marginRight: 6 }} />
-                      <Text style={styles.detailText}>{req.issueType}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.requestFooter}>
-                    <View style={styles.distanceBadge}>
-                      <Text style={styles.distanceText}>{req.distance} كم</Text>
-                    </View>
-                    <Text style={styles.priceText}>{req.estimatedPrice} ج.م</Text>
-                    <TouchableOpacity 
-                      style={styles.acceptButton}
-                      onPress={() => navigation?.navigate('RequestAccept', { job: req })}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name="arrow-back" size={16} color={colors.background.primary} />
-                        <Text style={styles.acceptButtonText}>قبول</Text>
+                    {/* Details */}
+                    <View style={styles.detailsRow}>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="location-outline" size={16} color={colors.text.muted} />
+                        <Text style={styles.detailText} numberOfLines={1}>{req.pickupAddress || req.location}</Text>
                       </View>
-                    </TouchableOpacity>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))
+                      <View style={styles.detailItem}>
+                        <Ionicons name="build-outline" size={16} color={colors.text.muted} />
+                        <Text style={styles.detailText}>{req.problem?.type || req.issueType}</Text>
+                      </View>
+                    </View>
+
+                    {/* Footer */}
+                    <View style={styles.requestFooter}>
+                      <Text style={styles.priceText}>{req.estimatedPrice || req.price || 0} ج.م</Text>
+                      <TouchableOpacity 
+                        style={styles.acceptButton}
+                        onPress={() => navigation?.navigate('OrderRequest', { job: req })}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="arrow-back" size={16} color={colors.background.primary} />
+                          <Text style={styles.acceptButtonText}>مراجعة</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={{ alignItems: 'center', padding: spacing.xl, opacity: 0.7 }}>
+                <MaterialCommunityIcons name="car-search-outline" size={48} color={colors.text.muted} />
+                <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.md }}>
+                  {isOnline ? 'لا توجد طلبات في الوقت الحالي. سيتم إشعارك فور توفر طلبات جديدة.' : 'أنت غير متاح. قم بتفعيل حالتك لتلقي الطلبات.'}
+                </Text>
+              </View>
+            )
           ) : (
             // Workshop Bookings
             mockWorkshopBookings.map((booking) => (
@@ -374,7 +432,61 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
+
+          {/* ── Service Flow Entry ── */}
+          {isWinch && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>سير العمل المتكامل</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => navigation?.navigate('OrderRequest')}
+              >
+                <LinearGradient
+                  colors={['rgba(37,99,235,0.18)', 'rgba(10,21,32,0.6)']}
+                  style={styles.serviceFlowBanner}
+                >
+                  <View style={styles.serviceFlowIconRow}>
+                    <View style={[styles.serviceFlowStep, { backgroundColor: 'rgba(37,99,235,0.2)' }]}>
+                      <MaterialCommunityIcons name="file-document-outline" size={20} color="#2563EB" />
+                    </View>
+                    <View style={styles.serviceFlowArrow}>
+                      <MaterialCommunityIcons name="arrow-left" size={14} color={colors.text.muted} />
+                    </View>
+                    <View style={[styles.serviceFlowStep, { backgroundColor: 'rgba(212,160,86,0.2)' }]}>
+                      <MaterialCommunityIcons name="map-marker-radius-outline" size={20} color={colors.accent.primary} />
+                    </View>
+                    <View style={styles.serviceFlowArrow}>
+                      <MaterialCommunityIcons name="arrow-left" size={14} color={colors.text.muted} />
+                    </View>
+                    <View style={[styles.serviceFlowStep, { backgroundColor: 'rgba(16,185,129,0.2)' }]}>
+                      <MaterialCommunityIcons name="tools" size={20} color={colors.accent.emerald} />
+                    </View>
+                    <View style={styles.serviceFlowArrow}>
+                      <MaterialCommunityIcons name="arrow-left" size={14} color={colors.text.muted} />
+                    </View>
+                    <View style={[styles.serviceFlowStep, { backgroundColor: 'rgba(245,158,11,0.2)' }]}>
+                      <MaterialCommunityIcons name="receipt" size={20} color={colors.status.warning} />
+                    </View>
+                    <View style={styles.serviceFlowArrow}>
+                      <MaterialCommunityIcons name="arrow-left" size={14} color={colors.text.muted} />
+                    </View>
+                    <View style={[styles.serviceFlowStep, { backgroundColor: 'rgba(16,185,129,0.2)' }]}>
+                      <MaterialCommunityIcons name="check-circle-outline" size={20} color={colors.status.success} />
+                    </View>
+                  </View>
+                  <View style={styles.serviceFlowInfo}>
+                    <Text style={styles.serviceFlowTitle}>ابدأ خدمة جديدة</Text>
+                    <Text style={styles.serviceFlowSub}>طلب ← تتبع ← تشخيص ← فاتورة ← إنجاز</Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-left" size={24} color={colors.accent.primary} />
+                </LinearGradient>
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
+
       </LinearGradient>
     </View>
   );
@@ -657,6 +769,34 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.text.primary,
   },
+  // Service Flow Banner
+  serviceFlowBanner: {
+    borderRadius: borderRadius['2xl'],
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(37,99,235,0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  serviceFlowIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  serviceFlowStep: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  serviceFlowArrow: {
+    paddingHorizontal: 2,
+  },
+  serviceFlowInfo: { flex: 1, paddingHorizontal: spacing.md },
+  serviceFlowTitle: { ...typography.label, color: colors.text.primary, marginBottom: 3 },
+  serviceFlowSub: { ...typography.caption, color: colors.text.muted },
 });
 
 export default DashboardScreen;
